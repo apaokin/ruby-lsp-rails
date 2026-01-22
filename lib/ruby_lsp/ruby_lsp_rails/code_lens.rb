@@ -217,7 +217,8 @@ module RubyLsp
 
       #: (Prism::DefNode node) -> void
       def add_route_code_lens_to_action(node)
-        class_name, _ = @constant_name_stack.last #: as !nil
+        class_name = @constant_name_stack.map(&:first).join("::")
+        # class_name, _ = @constant_name_stack.last #: as !nil
         route = @client.route(controller: class_name, action: node.name.to_s)
         return unless route
 

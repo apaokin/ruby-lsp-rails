@@ -349,6 +349,23 @@ module RubyLsp
 
       private
 
+      def find_route_in_all_engines(requirements)
+        route = ::Rails.application.routes.routes.find { |route| route.requirements == requirements }
+        return route if route
+
+        ::Rails.application.routes.routes.each do |route|
+          engine = route.app.app
+          next unless engine.is_a?(Class) && engine < ::Rails::Engine
+
+          route = engine.routes.routes.find { |route| route.requirements == requirements }
+
+          return route if route
+        rescue StandardError 
+        end
+
+        nil
+      end
+
       #: (Hash[Symbol | String, untyped]) -> Hash[Symbol | String, untyped]?
       def resolve_route_info(requirements)
         if requirements[:controller]
@@ -356,17 +373,16 @@ module RubyLsp
         end
 
         # In Rails 7.2 we can use `from_requirements, otherwise we fall back to a private API
-        route = if ::Rails.application.routes.respond_to?(:from_requirements)
-          ::Rails.application.routes.from_requirements(requirements)
-        else
-          ::Rails.application.routes.routes.find { |route| route.requirements == requirements }
-        end
-
+        # route = if ::Rails.application.routes.respond_to?(:from_requirements)
+        #   ::Rails.application.routes.from_requirements(requirements)
+        # else
+        #   ::Rails.application.routes.routes.find { |route| route.requirements == requirements }
+        # end
+        route = find_route_in_all_engines(requirements)
         source_location = route&.respond_to?(:source_location) && route.source_location
         return unless source_location
 
         file, _, line = source_location.rpartition(":")
-
         {
           source_location: [::Rails.root.join(file).to_s, line],
           verb: route.verb,
